@@ -1,100 +1,6 @@
 from enum import Enum
 import copy, math
 
-LEGO_COLORS_DICT = {
-    "white": [1, "#ffffff"],
-    "grey": [2, "#DDDEDD"],
-    "brick yellow": [5, "#D9BB7B"],
-    "nougat": [18, "#D67240"],
-    "bright red": [21, "#ff0000"],
-    "bright blue": [23, "#0000ff"],
-    "bright yellow": [24, "#Ffff00"],
-    "black": [26, "#000000"],
-    "dark green": [28, "#009900"],
-    "bright green": [37, "#00cc00"],
-    "dark orange": [38, "#A83D15"],
-    "medium blue": [102, "#478CC6"],
-    "bright orange": [106, "#ff6600"],
-    "bright bluish green": [107, "#059D9E"],
-    "bright yellowish-green": [119, "#95B90B"],
-    "bright reddish violet": [124, "#990066"],
-    "sand blue": [135, "#5E748C"],
-    "sand yellow": [138, "#8D7452"],
-    "earth blue": [140, "#002541"],
-    "earth green": [141, "#003300"],
-    "sand green": [151, "#5F8265"],
-    "dark red": [154, "#80081B"],
-    "flame yellowish orange": [191, "#F49B00"],
-    "reddish brown": [192, "#5B1C0C"],
-    "medium stone grey": [194, "#9C9291"],
-    "dark stone grey": [199, "#4C5156"],
-    "light stone grey": [208, "#E4E4DA"],
-    "light royal blue": [212, "#87C0EA"],
-    "bright purple": [221, "#DE378B"],
-    "light purple": [222, "#EE9DC3"],
-    "cool yellow": [226, "#FFFF99"],
-    "dark purple": [268, "#2C1577"],
-    "light nougat": [283, "#F5C189"],
-    "dark brown": [308, "#300F06"],
-    "medium nougat": [312, "#AA7D55"],
-    "dark azur": [321, "#469bc3"],
-    "medium azur": [322, "#68c3e2"],
-    "aqua": [323, "#d3f2ea"],
-    "medium lavender": [324, "#a06eb9"],
-    "lavender": [325, "#cda4de"],
-    "white glow": [329, "#f5f3d7"],
-    "spring yellowish green": [326, "#e2f99a"],
-    "olive green": [330, "#77774E"],
-    "medium-yellowish green": [331, "#96B93B"],
-}
-
-LEGO_COLORS_LIST = [
-    (255, 255, 255),
-    (221, 222, 221),
-    (217, 187, 123),
-    (214, 114, 64),
-    (255, 0, 0),
-    (0, 0, 255),
-    (255, 255, 0),
-    (0, 0, 0),
-    (0, 153, 0),
-    (0, 204, 0),
-    (168, 61, 21),
-    (71, 140, 198),
-    (255, 102, 0),
-    (5, 157, 158),
-    (149, 185, 11),
-    (153, 0, 102),
-    (94, 116, 140),
-    (141, 116, 82),
-    (0, 37, 65),
-    (0, 51, 0),
-    (95, 130, 101),
-    (128, 8, 27),
-    (244, 155, 0),
-    (91, 28, 12),
-    (156, 146, 145),
-    (76, 81, 86),
-    (228, 228, 218),
-    (135, 192, 234),
-    (222, 55, 139),
-    (238, 157, 195),
-    (255, 255, 153),
-    (44, 21, 119),
-    (245, 193, 137),
-    (48, 15, 6),
-    (170, 125, 85),
-    (70, 155, 195),
-    (104, 195, 226),
-    (211, 242, 234),
-    (160, 110, 185),
-    (205, 164, 222),
-    (245, 243, 215),
-    (226, 249, 154),
-    (119, 119, 78),
-    (150, 185, 59),
-]
-
 class ColorConv():
     def rgb_to_hsl(r:float, g:float, b:float):
         # Find the minimum and maximum values of the RGB components
@@ -178,6 +84,8 @@ class ColorConv():
 class ColorMode(Enum):
     RGB = 0
     HSL = 1
+    RGB255 = 2
+    HSL255 = 3
 
 class Color():
     def __init__(self, initial=None, _as:ColorMode = ColorMode.RGB):
@@ -200,6 +108,10 @@ class Color():
                 elif _as == ColorMode.HSL:
                     self.hsl = initial
     
+                elif _as == ColorMode.RGB255:
+                    self.rgb = ColorConv.base_255_to_1(initial)
+                elif _as == ColorMode.HSL255:
+                    self.hsl = ColorConv.base_255_to_1(initial)
 
     @property
     def rgb(self) -> tuple[float, float, float, float]:
@@ -334,18 +246,22 @@ class Color():
     def copy(self):
         return copy.deepcopy(self)
     
-    def diff(self, compare:"Color") -> float:
-        assert isinstance(compare, __class__)
-        """ Calculates the difference between this and another color as a float """
+    def diff(self, compare: "Color") -> float:
+        """ Calculates the difference between this and another color as a float, using HSL """
+        
+        assert isinstance(compare, __class__), "Invalid class comparison"
+
+        h1, s1, l1, _ = self.hsl
+        h2, s2, l2, _ = compare.hsl
+
         return math.sqrt(
-            (self.__r - compare.r) ** 2 + 
-            (self.__g - compare.g) ** 2 + 
-            (self.__b - compare.b) ** 2
+            ((h1 - h2) ** 2) * 2 + # bias towards hue
+             (s1 - s2) ** 2 +
+            (l1 - l2) ** 2
         )
     
-    
     def __str__(self):
-        return f"{self.__r},{self.__g},{self.__b}"
+        return f"{self.__r},{self.__g},{self.__b},{self.__a}"
 
     def __repr__(self):
         return f"RGB {round(self.__r, 3)},{round(self.__g, 3)},{round(self.__b, 3)}"
@@ -362,5 +278,96 @@ class Color():
 TRANSPARENT:Color = Color((0, 0, 0, 0))
 BLACK:Color = Color((0, 0, 0, 1))
 
-for index, item in enumerate(LEGO_COLORS_LIST):
-    LEGO_COLORS_LIST[index] = ColorConv.base_255_to_1(item)
+LEGO_COLORS_DICT = {
+    "white": [1, "#ffffff"],
+    "grey": [2, "#DDDEDD"],
+    "brick yellow": [5, "#D9BB7B"],
+    "nougat": [18, "#D67240"],
+    "bright red": [21, "#ff0000"],
+    "bright blue": [23, "#0000ff"],
+    "bright yellow": [24, "#Ffff00"],
+    "black": [26, "#000000"],
+    "dark green": [28, "#009900"],
+    "bright green": [37, "#00cc00"],
+    "dark orange": [38, "#A83D15"],
+    "medium blue": [102, "#478CC6"],
+    "bright orange": [106, "#ff6600"],
+    "bright bluish green": [107, "#059D9E"],
+    "bright yellowish-green": [119, "#95B90B"],
+    "bright reddish violet": [124, "#990066"],
+    "sand blue": [135, "#5E748C"],
+    "sand yellow": [138, "#8D7452"],
+    "earth blue": [140, "#002541"],
+    "earth green": [141, "#003300"],
+    "sand green": [151, "#5F8265"],
+    "dark red": [154, "#80081B"],
+    "flame yellowish orange": [191, "#F49B00"],
+    "reddish brown": [192, "#5B1C0C"],
+    "medium stone grey": [194, "#9C9291"],
+    "dark stone grey": [199, "#4C5156"],
+    "light stone grey": [208, "#E4E4DA"],
+    "light royal blue": [212, "#87C0EA"],
+    "bright purple": [221, "#DE378B"],
+    "light purple": [222, "#EE9DC3"],
+    "cool yellow": [226, "#FFFF99"],
+    "dark purple": [268, "#2C1577"],
+    "light nougat": [283, "#F5C189"],
+    "dark brown": [308, "#300F06"],
+    "medium nougat": [312, "#AA7D55"],
+    "dark azur": [321, "#469bc3"],
+    "medium azur": [322, "#68c3e2"],
+    "aqua": [323, "#d3f2ea"],
+    "medium lavender": [324, "#a06eb9"],
+    "lavender": [325, "#cda4de"],
+    "white glow": [329, "#f5f3d7"],
+    "spring yellowish green": [326, "#e2f99a"],
+    "olive green": [330, "#77774E"],
+    "medium-yellowish green": [331, "#96B93B"],
+}
+
+LEGO_COLORS_LIST = [
+    Color((255, 255, 255), _as = ColorMode.RGB255),
+    Color((221, 222, 221), _as = ColorMode.RGB255),
+    Color((217, 187, 123), _as = ColorMode.RGB255),
+    Color((214, 114, 64), _as = ColorMode.RGB255),
+    Color((255, 0, 0), _as = ColorMode.RGB255),
+    Color((0, 0, 255), _as = ColorMode.RGB255),
+    Color((255, 255, 0), _as = ColorMode.RGB255),
+    Color((0, 0, 0), _as = ColorMode.RGB255),
+    Color((0, 153, 0), _as = ColorMode.RGB255),
+    Color((0, 204, 0), _as = ColorMode.RGB255),
+    Color((168, 61, 21), _as = ColorMode.RGB255),
+    Color((71, 140, 198), _as = ColorMode.RGB255),
+    Color((255, 102, 0), _as = ColorMode.RGB255),
+    Color((5, 157, 158), _as = ColorMode.RGB255),
+    Color((149, 185, 11), _as = ColorMode.RGB255),
+    Color((153, 0, 102), _as = ColorMode.RGB255),
+    Color((94, 116, 140), _as = ColorMode.RGB255),
+    Color((141, 116, 82), _as = ColorMode.RGB255),
+    Color((0, 37, 65), _as = ColorMode.RGB255),
+    Color((0, 51, 0), _as = ColorMode.RGB255),
+    Color((95, 130, 101), _as = ColorMode.RGB255),
+    Color((128, 8, 27), _as = ColorMode.RGB255),
+    Color((244, 155, 0), _as = ColorMode.RGB255),
+    Color((91, 28, 12), _as = ColorMode.RGB255),
+    Color((156, 146, 145), _as = ColorMode.RGB255),
+    Color((76, 81, 86), _as = ColorMode.RGB255),
+    Color((228, 228, 218), _as = ColorMode.RGB255),
+    Color((135, 192, 234), _as = ColorMode.RGB255),
+    Color((222, 55, 139), _as = ColorMode.RGB255),
+    Color((238, 157, 195), _as = ColorMode.RGB255),
+    Color((255, 255, 153), _as = ColorMode.RGB255),
+    Color((44, 21, 119), _as = ColorMode.RGB255),
+    Color((245, 193, 137), _as = ColorMode.RGB255),
+    Color((48, 15, 6), _as = ColorMode.RGB255),
+    Color((170, 125, 85), _as = ColorMode.RGB255),
+    Color((70, 155, 195), _as = ColorMode.RGB255),
+    Color((104, 195, 226), _as = ColorMode.RGB255),
+    Color((211, 242, 234), _as = ColorMode.RGB255),
+    Color((160, 110, 185), _as = ColorMode.RGB255),
+    Color((205, 164, 222), _as = ColorMode.RGB255),
+    Color((245, 243, 215), _as = ColorMode.RGB255),
+    Color((226, 249, 154), _as = ColorMode.RGB255),
+    Color((119, 119, 78), _as = ColorMode.RGB255),
+    Color((150, 185, 59), _as = ColorMode.RGB255),
+]

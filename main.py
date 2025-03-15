@@ -3,19 +3,20 @@ from pathlib import Path
 
 import os
 
-from utils import color as color_util
+from utils import colors
+from utils.paths import ASSETS_DIR, OUTPUT_DIR
 
 
 class Stud():
-    def __init__(self, color:color_util.Color, radius:int, text_image = None):
-        self.color:color_util.Color = color.copy()
+    def __init__(self, color:colors.Color, radius:int, text_image = None):
+        self.color:colors.Color = color.copy()
         self.radius:int = radius
         self.text_image = text_image
         
         self.empty = self.color.alpha == 0
         self.uses:int = 0
 
-        self.image:Image = Image.new("RGBA", (self.diameter, self.diameter), color = color_util.TRANSPARENT.rgb255)
+        self.image:Image = Image.new("RGBA", (self.diameter, self.diameter), color = colors.TRANSPARENT.rgb255)
         self.draw = ImageDraw.Draw(self.image)
         
     def __eq__(self, compare):
@@ -23,7 +24,7 @@ class Stud():
             if self.empty and compare.empty: return True
             return self.color == compare.color
         
-        elif isinstance(compare, color_util.Color):
+        elif isinstance(compare, colors.Color):
             return self.color == compare
         
         return False
@@ -48,7 +49,7 @@ class Stud():
         inset = self.diameter / 6
         difference = self.diameter / 15
         
-        self.draw.ellipse([inset+difference, inset+difference, self.diameter-inset+difference, self.diameter-inset+difference], fill = color_util.BLACK.rgb255)
+        self.draw.ellipse([inset+difference, inset+difference, self.diameter-inset+difference, self.diameter-inset+difference], fill = colors.BLACK.rgb255)
         
         inset = self.diameter / 5
         darker = self.color.copy().darken(0.3)
@@ -70,9 +71,9 @@ class PixelMap(object):
                  path, 
                  greyscale = False, 
                  newx = 64,
-                 transparent_color = color_util.TRANSPARENT, 
+                 transparent_color = colors.TRANSPARENT, 
                  transparent_margin = 0.5, 
-                 background_color = color_util.TRANSPARENT, 
+                 background_color = colors.TRANSPARENT, 
                  keep_removed_transparent_studs = False, 
                  transparent_background = True, 
                  stud_resolution = 96, 
@@ -88,10 +89,10 @@ class PixelMap(object):
                 self.filter_greyscale:bool = greyscale
                 self.keep_removed_transparent_studs:bool = keep_removed_transparent_studs
                 
-                self.transparent_color:color_util.Color = color_util.Color(transparent_color)
+                self.transparent_color:colors.Color = colors.Color(transparent_color)
                 self.transparent_margin = transparent_margin
                 
-                self.background_color:color_util.Color = color_util.Color(background_color) if not transparent_background else color_util.TRANSPARENT
+                self.background_color:colors.Color = colors.Color(background_color) if not transparent_background else colors.TRANSPARENT
                 self.stud_resolution:int = stud_resolution
                 self.limit_to_lego_only:bool = limit_to_lego_only
                 
@@ -108,8 +109,8 @@ class PixelMap(object):
         self.loadImage()
 
         self.studs = list()
-        self.pixel_map: list[list[color_util.Color]] = list() # A 2 dimensional list of the colors of each pixel
-        self.image_colors: list[color_util.Color] = list()
+        self.pixel_map: list[list[colors.Color]] = list() # A 2 dimensional list of the colors of each pixel
+        self.image_colors: list[colors.Color] = list()
         
         self.color_filter = dict() # A map between the image color and its closest lego color
         self.color_filter_uses: dict[str, int] = dict() # Counts the amount of times a filtered color is used
@@ -131,7 +132,7 @@ class PixelMap(object):
         print("Image Saved")
 
 
-    def drawStud(self, image, coords, radius, fill:color_util.Color, stud_text_image = None):        
+    def drawStud(self, image, coords, radius, fill:colors.Color, stud_text_image = None):        
         # Deep copy the color to preserve it in the pixel_map list whilst performing edits here
         fill = fill.copy()
         
@@ -164,23 +165,23 @@ class PixelMap(object):
     def toMap(self):
         for x in range(self.image_width):
             for y in range(self.image_height):
-                color = color_util.Color(
-                    color_util.ColorConv.base_255_to_1(self.pixels[x,y])
+                pixel_color = colors.Color(
+                    colors.ColorConv.base_255_to_1(self.pixels[x,y])
                 )
                 
-                if color not in self.image_colors:
-                    self.image_colors.append(color)
+                if pixel_color not in self.image_colors:
+                    self.image_colors.append(pixel_color)
                     
                 if len(self.pixel_map) < y + 1: 
                     self.pixel_map.append(list())
                 
-                self.pixel_map[y].append(color)
+                self.pixel_map[y].append(pixel_color)
 
 
     def generateImage(self):
 
         def preloadStudText(radius):
-            text = Image.open("assets/img/legotext.png").rotate(15,expand=True)
+            text = Image.open(ASSETS_DIR / "img" / "legotext.png").rotate(15,expand=True)
             
             diameter = radius * 2
             inset = diameter / 5
@@ -193,16 +194,21 @@ class PixelMap(object):
         stud_diameter = stud_radius * 2
         preloaded_stud_text = preloadStudText(stud_radius)
 
-        new_image = Image.new("RGBA", (stud_diameter * self.image_width, stud_diameter * self.image_height), color = color_util.BLACK.rgb255)
+        new_image = Image.new("RGBA", (stud_diameter * self.image_width, stud_diameter * self.image_height), color = colors.BLACK.rgb255)
         
         for y in enumerate(self.pixel_map):
             for x in enumerate(y[1]):                
                 coords = [x[0] * stud_diameter, y[0] * stud_diameter, (x[0]+1) * stud_diameter, (y[0]+1) * stud_diameter]
-                self.drawStud(new_image, coords, stud_radius, self.pixel_map[y[0]][x[0]], stud_text_image = preloaded_stud_text)
+                
+                fill_color = self.pixel_map[y[0]][x[0]]
+                if self.options.limit_to_lego_only:
+                    fill_color = self.color_filter[str(fill_color)]
+                
+                self.drawStud(new_image, coords, stud_radius, fill_color, stud_text_image = preloaded_stud_text)
         
         print("Image Generated")
 
-        new_image.save(f"{self.imageName}_lego.png")
+        new_image.save(OUTPUT_DIR / self.imageName / f"{self.imageName}_lego{"_limit" if self.options.limit_to_lego_only else ""}.png")
 
 
     def loadImage(self):
@@ -234,30 +240,30 @@ class PixelMap(object):
 
 
     def generateFilter(self):
-        new_color_map:list[color_util.Color] = list()
+        new_color_map:list[colors.Color] = list()
         
         # Set all colors alpha to 1
-        for color in self.image_colors:
-            copied = color.copy()
-            copied.alpha = 1
+        for original_color in self.image_colors:
+            new_color = original_color.copy()
+            new_color.alpha = 1
             
-            new_color_map.append(copied)
+            new_color_map.append(new_color)
 
-        for color in new_color_map:
             differences:list[float] = []
             
             # Get the difference value for every color in the lego set
-            for compare in color_util.LEGO_COLORS_LIST:
-                differences.append(color.diff(compare))
+            for compare in colors.LEGO_COLORS_LIST:
+                differences.append(new_color.diff(compare))
             
-            closest = differences.index(min(differences))
+            closest_color_index = differences.index(min(differences))
+            closest_color = colors.LEGO_COLORS_LIST[closest_color_index]
             
             # set the color in the filter map to the color with the smallest difference value
-            self.color_filter[str(color)] = color_util.LEGO_COLORS_LIST[closest]
+            self.color_filter[str(original_color)] = closest_color
             
             # Add the new color to the filter index list
-            if str(closest) not in self.color_filter_uses.keys():
-                self.color_filter_uses[str(closest)] = 0 # Counter for how many times this color is used
+            if str(closest_color) not in self.color_filter_uses.keys():
+                self.color_filter_uses[str(closest_color)] = 0 # Counter for how many times this color is used
 
 
     def reduceColor(self):
@@ -271,7 +277,8 @@ class PixelMap(object):
 USE_DEBUG_OPTIONS = True
 
 if USE_DEBUG_OPTIONS:
-    path = "output/benman2/benman2.png"
+    name = "rags"
+    path = OUTPUT_DIR / name / f"{name}.png"
 else:
     path = input("Please enter the path of the image you want to turn into lego\n\n\tImage should be in png format\n\tRemember to add the filetype on the end of the path (eg .png)\n\tIf the image is in the same directory, you only need to put the name and the filetype (eg \"img.png\")\n\tIf it is in any other directory, you will need the full path (eg \"C:\\Users\\Lego\\Pictures\\img.png\")\n\n")
 
@@ -289,8 +296,8 @@ while True:
         break
     
 if USE_DEBUG_OPTIONS:
-    WIDTH_STUDS = 48
-    LIMIT_TO_LEGO_ONLY = False
+    WIDTH_STUDS = 96
+    LIMIT_TO_LEGO_ONLY = True
 else:
     WIDTH_STUDS = int(input("\nHow many studs wide would you like the image to be?\n\n\tPlease bear in mind that the larger this value, the larger the file size.\n\tIf you wish to keep the amount of studs but reduce file size, the variable\n\tstudRadius, in the function generateImage, in the class PixelMap can be decreased\n\tThis is not recommended, a wiser path would be to then resize it in an image editor.\n\tIf you do edit it, the default value is 96. The recommended stud width is 64.\n\tCombining these two values will give you a png image of width 12'288 pixels.\n\tA square image will therefore result in a png image of size ~4.83MB.\n\n"))
     LIMIT_TO_LEGO_ONLY = input("\nDo you want the image to be filtered to Lego default colors. (yes/no)\n\n").lower()=="yes"
@@ -298,20 +305,16 @@ else:
 
 pixel_map = PixelMap(path, newx=WIDTH_STUDS, stud_resolution=72, limit_to_lego_only=LIMIT_TO_LEGO_ONLY, reduce_color=-1)
 
-with open(str(path) + ".cl", "w") as f:
-    for color in pixel_map.image_colors:
-        f.write(str(color) + "\n")
+if LIMIT_TO_LEGO_ONLY:
+    sorted_byuses = dict(sorted(pixel_map.color_filter_uses.items(), key=lambda item: item[1], reverse=True))
+    print(pixel_map.color_filter_uses)
 
-legoColorsDictKeys = list(color_util.LEGO_COLORS_DICT.keys())
-
-sorted_byuses = dict(sorted(pixel_map.color_filter_uses.items(), key=lambda item: item[1], reverse=True))
-
-with open(str(path) + ".cl", "w") as f:
-    f.write("Colors used in image\n\n")
-    
-    for key, value in sorted_byuses.items():
-        color_id = "COLOR ID"
-        color_hexcode = "HEX CODE"
-        color_uses = value
-        color_name = "COLOR NAME"
-        f.write(f"{color_id}\t\t{color_hexcode}\t\t{color_uses}\t\t{color_name}\n")
+    with open(str(path) + ".cl", "w") as f:
+        f.write("Colors used in image\n\n")
+        
+        for key, value in sorted_byuses.items():
+            color_id = "COLOR ID"
+            color_hexcode = "HEX CODE"
+            color_uses = value
+            color_name = "COLOR NAME"
+            f.write(f"{color_id}\t\t{color_hexcode}\t\t{color_uses}\t\t{color_name}\n")
