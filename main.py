@@ -8,7 +8,24 @@ from utils.paths import ASSETS_DIR, OUTPUT_DIR
 
 
 class Stud():
-    def __init__(self, color:colors.Color, radius:int, text_image = None):
+    """ Represents a LEGO-like stud with customizable color, radius, and optional text image.
+
+    This class allows the creation of a stud object with a specified color and radius. The stud is represented
+    as a circular shape with color and shading effects, and optionally a text image that can be added to the stud.
+    The stud's color is stored as a `colors.Color` object, and its image is generated and drawn based on the specified attributes.
+    """
+    
+    def __init__(self, color:colors.Color, radius:int, text_image:Image = None):
+        """ Initializes a Stud object with a given color, radius, and optional text image.
+
+        :param color: The color of the stud, as a `colors.Color` object.
+        :type color: colors.Color
+        :param radius: The radius of the stud, in pixels, which determines its size.
+        :type radius: int
+        :param text_image: Optional image to be placed on the stud, defaults to None
+        :type text_image: PIL.Image, optional
+        """
+        
         self.color:colors.Color = color.copy()
         self.radius:int = radius
         self.text_image = text_image
@@ -18,29 +35,41 @@ class Stud():
 
         self.image:Image = Image.new("RGBA", (self.diameter, self.diameter), color = colors.TRANSPARENT.rgb255)
         self.draw = ImageDraw.Draw(self.image)
-        
-    def __eq__(self, compare):
-        if isinstance(compare, __class__):
-            if self.empty and compare.empty: return True
-            return self.color == compare.color
-        
-        elif isinstance(compare, colors.Color):
-            return self.color == compare
-        
-        return False
     
     def __del__(self):
+        """ Cleans up the resources used by the Stud object. \n
+        This method ensures that memory is freed when the Stud object is deleted.
+        """
         del self.image
         del self.draw
     
     @property
     def diameter(self) -> int:
+        """ Calculates and returns the diameter of the stud in pixels.
+        
+        :return: The diameter of the stud.
+        :rtype: int
+        """
         return self.radius * 2
 
     def add_use(self):
+        """ Increments the usage count for the stud. """
         self.uses += 1
         
     def make_stud_image(self):
+        """ Generates the stud image, drawing the stud with its color, and adding a text image (if available).
+
+        The stud is drawn as a circular shape with three layers:
+        - The main color of the stud.
+        - A black inset circle.
+        - A darker inset circle for shading.
+        
+        If a text image is not provided, a default text image is used.
+
+        :return: True if the stud image was successfully generated, False if the stud is empty (transparent).
+        :rtype: bool
+        """
+        
         if self.empty:
             return False
         
@@ -159,7 +188,7 @@ class PixelMap(object):
                 # get index of fill, increase by 1
                 self.color_filter_uses[str(fill)] += 1
         
-        image.paste(stud.image, (coords[0],coords[1]))
+        image.paste(stud.image, (coords[0], coords[1]))
 
 
     def toMap(self):
@@ -181,7 +210,7 @@ class PixelMap(object):
     def generateImage(self):
 
         def preloadStudText(radius):
-            text = Image.open(ASSETS_DIR / "img" / "legotext.png").rotate(15,expand=True)
+            text = Image.open(ASSETS_DIR / "img" / "legotext.png").rotate(15, expand=True)
             
             diameter = radius * 2
             inset = diameter / 5
